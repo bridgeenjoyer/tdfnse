@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wayfarer Kingdoms — Tower Defense</title>
+<style>
+  :root{
+    --ink:#2b2320; --parch:#f6ecd8; --parch2:#eadfc4; --line:#c9b186;
+    --gold:#c8892b; --gold2:#f0c36a; --leaf:#4f7a3a; --berry:#a33b3b;
+    --sky:#7fb0c9; --shadow:0 3px 0 rgba(0,0,0,.18), 0 10px 22px rgba(0,0,0,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Trebuchet MS",Verdana,sans-serif;color:var(--ink);
+    background:
+      radial-gradient(circle at 20% 10%, #fff6e2 0%, transparent 60%),
+      radial-gradient(circle at 85% 80%, #ffe9c2 0%, transparent 55%),
+      repeating-linear-gradient(45deg,#f3e6cb 0 12px,#f0e2c4 12px 24px);
+    overflow:hidden;
+  }
+  #app{display:flex;flex-direction:column;height:100vh}
+  header{
+    display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:wrap;
+    background:linear-gradient(#5b4632,#3f3123);color:#ffeccd;border-bottom:4px solid #2a2016;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);z-index:5;
+  }
+  header h1{font-size:18px;margin:0 12px 0 0;letter-spacing:1px;text-shadow:0 2px 0 #000}
+  .stat{background:rgba(0,0,0,.28);border:2px solid rgba(255,255,255,.14);border-radius:10px;padding:4px 10px;font-weight:bold;font-size:14px;white-space:nowrap}
+  .stat small{opacity:.7;font-weight:normal}
+  .grow{flex:1}
+  button{
+    font-family:inherit;font-weight:bold;cursor:pointer;color:#3a2c1d;
+    background:linear-gradient(#fbe3ad,#e3c079);border:2px solid #8a6a36;border-radius:9px;
+    padding:6px 10px;box-shadow:0 2px 0 #8a6a36;font-size:13px;
+  }
+  button:hover{filter:brightness(1.06)}
+  button:active{transform:translateY(2px);box-shadow:none}
+  button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}
+  button.dark{background:linear-gradient(#6d5639,#4b3a26);color:#ffe9c0;border-color:#2a2016;box-shadow:0 2px 0 #2a2016}
+  button.go{background:linear-gradient(#a8d98a,#6fae52);border-color:#3f6a2c;box-shadow:0 2px 0 #3f6a2c}
+  button.bad{background:linear-gradient(#f0a5a5,#cf6b6b);border-color:#8a3636;box-shadow:0 2px 0 #8a3636}
+  main{display:flex;flex:1;min-height:0}
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;padding:8px;min-width:0}
+  canvas{border-radius:14px;border:6px solid #4a3a26;box-shadow:var(--shadow);max-width:100%;max-height:100%;image-rendering:auto;cursor:crosshair}
+  aside{
+    width:400px;flex:none;background:linear-gradient(var(--parch),var(--parch2));border-left:5px solid #4a3a26;
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:rgba(0,0,0,.06);border-bottom:2px solid var(--line)}
+  .tabs button{padding:5px 9px;font-size:12px}
+  .tabs button.on{background:linear-gradient(#f6d79a,#d9ab54);box-shadow:inset 0 0 0 2px #fff6}
+  .pane{flex:1;overflow:auto;padding:10px}
+  .pane::-webkit-scrollbar{width:10px}
+  .pane::-webkit-scrollbar-thumb{background:#bfa470;border-radius:8px}
+  h3{margin:4px 0 8px;font-size:15px;border-bottom:2px dashed var(--line);padding-bottom:4px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(114px,1fr));gap:8px}
+  .card{
+    background:linear-gradient(#fffaef,#f2e6cd);border:2px solid var(--line);border-radius:12px;
+    padding:7px;text-align:center;position:relative;box-shadow:0 2px 0 #cbb489;
+  }
+  .card.locked{opacity:.5;filter:grayscale(.7)}
+  .card.sel{outline:3px solid var(--gold);outline-offset:1px}
+  .card .emo{font-size:26px;line-height:1.1}
+  .card .nm{font-size:11px;font-weight:bold;height:26px;display:flex;align-items:center;justify-content:center}
+  .card .pr{font-size:11px;color:#6b5636}
+  .card .lv{position:absolute;top:3px;right:4px;background:var(--gold);color:#fff;border-radius:6px;font-size:10px;padding:0 4px;font-weight:bold}
+  .card .inv{position:absolute;top:3px;left:4px;background:var(--leaf);color:#fff;border-radius:6px;font-size:10px;padding:0 4px;font-weight:bold}
+  .row{display:flex;gap:6px;align-items:center;margin:4px 0;font-size:12px}
+  .bar{height:8px;background:#d9c69c;border-radius:6px;overflow:hidden;flex:1;border:1px solid #b79f71}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#7fae4e,#c8d24e)}
+  .up{display:flex;justify-content:space-between;align-items:center;gap:6px;background:#fffaef;border:2px solid var(--line);border-radius:10px;padding:6px 8px;margin-bottom:6px}
+  .up b{font-size:12px} .up p{margin:2px 0 0;font-size:11px;color:#6b5636;max-width:215px}
+  .tag{display:inline-block;background:#e6d6b0;border:1px solid var(--line);border-radius:6px;padding:0 5px;font-size:10px;margin:2px 2px 0 0}
+  #log{height:84px;overflow:auto;font-size:11px;background:rgba(0,0,0,.05);border-top:2px solid var(--line);padding:6px 10px}
+  #log div{margin:1px 0}
+  .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(30,22,14,.9);color:#ffe9c0;padding:8px 16px;border-radius:10px;font-weight:bold;pointer-events:none;opacity:0;transition:.3s;z-index:9}
+  .toast.on{opacity:1}
+  #overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,14,8,.68);z-index:8}
+  #overlay .box{background:linear-gradient(var(--parch),var(--parch2));border:5px solid #4a3a26;border-radius:16px;padding:22px 26px;text-align:center;max-width:460px;box-shadow:var(--shadow)}
+  #overlay h2{margin:0 0 8px}
+  .mini{font-size:11px;color:#6b5636}
+  textarea{width:100%;height:120px;font-size:10px;font-family:monospace;border:2px solid var(--line);border-radius:8px;padding:6px;background:#fffaef}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🏰 WAYFARER KINGDOMS</h1>
+    <div class="stat">🪙 <span id="sCoins">0</span></div>
+    <div class="stat">💎 <span id="sGems">0</span></div>
+    <div class="stat">❤️ <span id="sLives">20</span></div>
+    <div class="stat"><small>Realm</small> <span id="sSet">1</span> · <small>Lv</small> <span id="sLevel">1</span></div>
+    <div class="stat"><small>Wave</small> <span id="sWave">0/0</span></div>
+    <div class="stat" id="sTheme">Isle</div>
+    <div class="grow"></div>
+    <button id="btnStart" class="go">▶ Start Wave</button>
+    <button id="btnSpeed" class="dark">⏩ 1×</button>
+    <button id="btnPause" class="dark">⏸</button>
+    <button id="btnReturn" class="dark" title="Recall every placed tower to your inventory">📦 Recall All</button>
+  </header>
+  <main>
+    <div id="stage">
+      <canvas id="cv" width="768" height="768"></canvas>
+      <div class="toast" id="toast"></div>
+      <div id="overlay"><div class="box" id="obox"></div></div>
+    </div>
+    <aside>
+      <div class="tabs" id="tabs"></div>
+      <div class="pane" id="pane"></div>
+      <div id="log"></div>
+    </aside>
+  </main>
+</div>
+<input type="file" id="fileIn" accept="application/json" style="display:none" />
+<script>
+/* ============================================================
+   WAYFARER KINGDOMS — single file tower defense
+   ============================================================ */
+const GRID=16, CELL=48, W=GRID*CELL;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const fmt=n=>n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e4?(n/1e3).toFixed(1)+'k':Math.floor(n).toLocaleString();
+
+/* ---------- THEMES ---------- */
+const THEMES=[
+ {name:'Emerald Isle',ground:'#7ec26a',ground2:'#6fb25d',edge:'#3f7a3c',path:'#e7cf94',path2:'#d8bb78',pathEdge:'#a98a4f',border:'#4fa3c7',sky:'#bfe4f2',deco:['🌴','🌺','🐚','🪸','🦜'],decoRate:.08},
+ {name:'Frostpeak Mountain',ground:'#dfe9f2',ground2:'#cbd8e6',edge:'#8fa3b8',path:'#9aa7b5',path2:'#8996a6',pathEdge:'#66707c',border:'#f3f8ff',sky:'#e9f2fb',deco:['🏔️','🌲','❄️','🪨','🦌'],decoRate:.09},
+ {name:'Ashfall Volcano',ground:'#4b3a3a',ground2:'#3f3030',edge:'#241a1a',path:'#8d3b22',path2:'#76301b',pathEdge:'#e06a2a',border:'#1d1414',sky:'#5d2c22',deco:['🌋','🔥','🪨','💀','🕯️'],decoRate:.08},
+ {name:'Whisperwood',ground:'#4e7a46',ground2:'#436c3d',edge:'#2c4a2a',path:'#6d5238',path2:'#5d452f',pathEdge:'#8e6c46',border:'#2f4a2c',sky:'#8fbf7f',deco:['🌳','🍄','🦊','🌿','🪵'],decoRate:.11},
+ {name:'Sunscorch Dunes',ground:'#e9cf92',ground2:'#ddc082',edge:'#b79a5c',path:'#c8a463',path2:'#b8934f',pathEdge:'#8e6f38',border:'#f2e0ad',sky:'#ffe9b0',deco:['🌵','🏜️','🦂','🐫','🏺'],decoRate:.07},
+ {name:'Coral Shallows',ground:'#6fc6c0',ground2:'#5fb6b1',edge:'#2f7c79',path:'#f0e0b6',path2:'#e0cfa0',pathEdge:'#b79a62',border:'#3aa0c4',sky:'#c5f0ec',deco:['🐠','🪼','🐙','🐚','🫧'],decoRate:.1},
+ {name:'Obsidian Wastes',ground:'#3b3550',ground2:'#332e46',edge:'#1d1a2b',path:'#5b4d78',path2:'#4d4166',pathEdge:'#9a7fd6',border:'#241f36',sky:'#2a2440',deco:['🔮','🌑','🪄','☄️','👁️'],decoRate:.07},
+ {name:'Goldleaf Highlands',ground:'#c8a94f',ground2:'#b89a43',edge:'#8a7230',path:'#8a5f38',path2:'#77502f',pathEdge:'#d4a45c',border:'#6f5a26',sky:'#f2dd9a',deco:['🍁','🌾','🦅','🪨','⛰️'],decoRate:.1}
+];
+
+/* ---------- TOWER CATALOG (100) ---------- */
+const ROLES=[
+ {k:'single', label:'Marksman', dmg:10, rng:2.6, cd:.65, desc:'Fast single-target shots.'},
+ {k:'splash', label:'Bombard',  dmg:22, rng:2.4, cd:1.5, desc:'Explodes for area damage.'},
+ {k:'slow',   label:'Frostcaller',dmg:6, rng:2.4, cd:.9, desc:'Chills foes, slowing them.'},
+ {k:'poison', label:'Venomist', dmg:5,  rng:2.5, cd:1.1, desc:'Applies stacking poison.'},
+ {k:'chain',  label:'Stormcaller',dmg:12,rng:2.7,cd:1.2, desc:'Lightning arcs to 3 foes.'},
+ {k:'sniper', label:'Longshot', dmg:46, rng:5.2, cd:2.2, desc:'Huge range, huge hits, crits.'},
+ {k:'support',label:'Bannerman',dmg:0,  rng:2.6, cd:0,   desc:'Aura: +damage & +rate nearby.'},
+ {k:'income', label:'Coiner',   dmg:0,  rng:1,   cd:0,   desc:'Mints coins every second.'},
+ {k:'tesla',  label:'Arcanist', dmg:9,  rng:1.9, cd:.35, desc:'Very fast short-range zaps.'},
+ {k:'flame',  label:'Pyre',     dmg:7,  rng:1.8, cd:.25, desc:'Scorches everything close, burns.'}
+];
+const EMOJI=[
+ ['🏹','💣','❄️','🧪','⚡','🎯','🚩','🪙','🔮','🔥'],
+ ['🗡️','🧨','🧊','☠️','🌩️','🔭','📯','💰','✨','🕯️'],
+ ['🪃','🎆','🌨️','🍄','🌀','🛰️','🥁','🏦','🪄','🌶️'],
+ ['🔫','🗿','🐧','🕷️','🌪️','🦅','🎺','💳','🧿','☄️'],
+ ['⚔️','⛏️','🧙','🐍','🔌','🛸','🎖️','💎','🌌','🐉'],
+ ['🛡️','💥','🥶','🧫','🌐','👁️','👑','🏛️','🌠','🌋'],
+ ['🪓','🚀','🧛','🦂','🔋','🦉','📣','⚖️','🪬','😈'],
+ ['🏺','☢️','🌬️','🧟','🧲','🦇','🎻','🧧','🪞','🔆'],
+ ['🦾','🌑','🗻','🪱','⚙️','🌟','🎼','🏵️','🕳️','💫'],
+ ['🐺','🌞','🧜','🦠','🛞','🦇','🎇','🫅','🪐','🐲']
+];
+const PREFIX=['Oaken','Iron','Silver','Runed','Storm','Radiant','Eclipse','Dragon','Astral','Eternal'];
+const TOWERS=[];
+for(let t=1;t<=10;t++){
+  for(let r=0;r<10;r++){
+    const role=ROLES[r];
+    const id='t'+t+'_'+r;
+    const price=Math.round(60*Math.pow(2.35,t-1)*(role.k==='income'?1.5:role.k==='support'?1.3:role.k==='sniper'?1.25:1)/5)*5;
+    TOWERS.push({
+      id, tier:t, role:role.k, name:PREFIX[t-1]+' '+role.label, emoji:EMOJI[t-1][r],
+      desc:role.desc, price,
+      dmg:role.dmg*Math.pow(1.95,t-1), rng:role.rng+t*0.12, cd:role.cd,
+      unlockSet: t===1 ? (r<6?1:2) : t
+    });
+  }
+}
+const TW=Object.fromEntries(TOWERS.map(t=>[t.id,t]));
+// Build cost rises with every permanent card level of that tower type.
+function buyPrice(id){ return Math.round(TW[id].price*Math.pow(1.34,cardLv(id)-1)/5)*5; }
+
+/* ---------- DAMAGE CLASSES & FOE TYPES ---------- */
+const DCLASS={single:'phys',sniper:'phys',splash:'phys',chain:'arc',tesla:'arc',support:'arc',income:'arc',poison:'elem',flame:'elem',slow:'elem'};
+const CLASSNAME={phys:'Physical',arc:'Arcane',elem:'Elemental'};
+// res = fraction of damage ignored from that class. dodge = chance to evade physical shots.
+const KINDS=[
+ {tag:'',          w:30, hpMul:1,   spd:1,    armor:.05, min:1},
+ {tag:'Swift',     w:16, hpMul:.9,  spd:2.15, armor:0,   dodge:.15, min:1, mark:'#8fd8ff'},
+ {tag:'Armored',   w:15, hpMul:3.4, spd:.75,  armor:.5,  res:{phys:.4},          min:1, mark:'#e0b060'},
+ {tag:'Warded',    w:12, hpMul:2.3, spd:.95,  armor:.12, res:{arc:.6,elem:.3},   min:2, mark:'#b48cff'},
+ {tag:'Phantom',   w:11, hpMul:1.6, spd:1.35, armor:0,   dodge:.45, res:{phys:.45}, min:3, mark:'#cfe9ff'},
+ {tag:'Healer',    w:9,  hpMul:1.7, spd:1.05, armor:.1,  min:2, mark:'#7ede6a'},
+ {tag:'Regenerator',w:9, hpMul:2.6, spd:.9,   armor:.15, regen:.05, res:{elem:-.25}, min:3, mark:'#f27fb0'},
+ {tag:'Swarmling', w:10, hpMul:.42, spd:1.5,  armor:0,   pack:5, min:2, mark:'#ffe08a'},
+ {tag:'Juggernaut',w:6,  hpMul:7,   spd:.6,   armor:.58, res:{phys:.35,arc:.3}, mini:true, min:4, mark:'#ff9d4d'}
+];
+function pickKind(gLv,w){
+  const pool=KINDS.filter(k=>gLv+w*0.5>=k.min);
+  let tot=0; for(const k of pool) tot+=k.w;
+  let r=Math.random()*tot;
+  for(const k of pool){ r-=k.w; if(r<=0) return k; }
+  return pool[0];
+}
+
+/* ---------- GLOBAL UPGRADES ---------- */
+const GLOBALS=[
+ {id:'aura_dmg', n:'Kingdom Armory', d:'+6% damage for every tower, per level.', max:10, cost:l=>Math.round(900*Math.pow(1.75,l)), cur:'coins'},
+ {id:'aura_rng', n:'Watchtower Lenses', d:'+4% range for every tower, per level.', max:8, cost:l=>Math.round(1100*Math.pow(1.8,l)), cur:'coins'},
+ {id:'aura_rate',n:'Drillmaster', d:'+5% fire rate for every tower, per level.', max:8, cost:l=>Math.round(1400*Math.pow(1.85,l)), cur:'coins'},
+ {id:'bounty',   n:'Royal Bounty', d:'+12% coins from every kill, per level.', max:10, cost:l=>Math.round(1200*Math.pow(1.7,l)), cur:'coins'},
+ {id:'interest', n:'Treasury Interest', d:'+3% of held coins awarded at level end.', max:6, cost:l=>Math.round(2600*Math.pow(1.9,l)), cur:'coins'},
+ {id:'sellval',  n:'Guild Haggling', d:'+4% sell value, per level (base 70%).', max:5, cost:l=>Math.round(1800*Math.pow(1.8,l)), cur:'coins'},
+ {id:'lives',    n:'Castle Walls', d:'+4 maximum lives, per level.', max:8, cost:l=>Math.round(2200*Math.pow(1.8,l)), cur:'coins'},
+ {id:'gemluck',  n:'Prospector Eye', d:'+0.4% gem drop chance per kill, per level.', max:8, cost:l=>2+l*2, cur:'gems'},
+ {id:'insure',   n:'Wave Insurance', d:'Buy a charge: next leak costs you no coins and no life.', max:99, cost:l=>28, cur:'gems', stock:true},
+ {id:'quickcast',n:'Rapid Deployment', d:'Placed towers start with +1 free personal level.', max:3, cost:l=>45+l*35, cur:'gems'},
+ {id:'refund',   n:'Mercy of the Crown', d:'Recover 10% of coins lost to leaks, per level.', max:5, cost:l=>18+l*14, cur:'gems'},
+ {id:'crit',     n:'Duelist Training', d:'+3% chance for any shot to deal triple damage.', max:10, cost:l=>Math.round(3000*Math.pow(1.85,l)), cur:'coins'},
+ {id:'pierce',   n:'Siegebreaker Oils', d:'Ignore 8% of enemy armor, per level.', max:8, cost:l=>Math.round(2400*Math.pow(1.8,l)), cur:'coins'},
+ {id:'startcoin',n:'Merchant Caravans', d:'+250 coins granted at the start of each realm.', max:10, cost:l=>Math.round(2000*Math.pow(1.6,l)), cur:'coins'},
+ {id:'gemwave',  n:'Crystal Veins', d:'+1 gem per level completed, per level.', max:6, cost:l=>30+l*26, cur:'gems'}
+];
+
+/* ---------- ENEMY FAMILIES (change every realm) ---------- */
+const FAMILIES=[
+ {n:'Slimes',    e:['🟢','🟣','🔵','🫧'], boss:'🦠'},
+ {n:'Undead',    e:['💀','🧟','👻','🦴'], boss:'🧛'},
+ {n:'Beasts',    e:['🐗','🐺','🦝','🦡'], boss:'🐻'},
+ {n:'Sea Horrors',e:['🦀','🐙','🦈','🪼'], boss:'🐋'},
+ {n:'Insects',   e:['🐛','🕷️','🐝','🦗'], boss:'🦂'},
+ {n:'Demons',    e:['😈','👹','👺','🔥'], boss:'🐲'},
+ {n:'Constructs',e:['🤖','⚙️','🗿','🛞'], boss:'🦾'},
+ {n:'Frost Kin', e:['🐧','🧊','🥶','⛄'], boss:'🦣'},
+ {n:'Sky Raiders',e:['🦅','🦇','🪁','🛸'], boss:'🐦‍🔥'},
+ {n:'Fungal Host',e:['🍄','🪲','🌱','🦠'], boss:'🌳'}
+];
+
+/* ---------- STATE ---------- */
+let S=null, R=null; // S=save state, R=run state
+function newSave(){
+  return {
+    v:3, coins:500, gems:8, set:1, level:1, lives:20,
+    cards:{}, inv:{}, glob:{}, insure:0, mobile:{}, field:null,
+    seenTutorial:false, kills:0, leaks:0, bestSet:1, playtime:0,
+    seed:Math.floor(Math.random()*1e9), family:0, theme:0
+  };
+}
+function cardLv(id){ return S.cards[id]||1; }
+function isMobile(id){ return !!(S.mobile&&S.mobile[id]); }
+function mobilityCost(id){ return { coins: Math.round(TW[id].price*11/5)*5, gems: 4+Math.ceil(TW[id].tier*1.5) }; }
+function buyMobility(id){
+  if(isMobile(id)) return toast('Already trained');
+  const c=mobilityCost(id);
+  if(S.coins<c.coins||S.gems<c.gems) return toast('Need '+fmt(c.coins)+' 🪙 and '+c.gems+' 💎');
+  S.coins-=c.coins; S.gems-=c.gems; S.mobile[id]=true;
+  toast(TW[id].name+' can now redeploy mid-wave');
+  sync(); render(); save(true);
+}
+window.buyMobility=buyMobility;
+function gl(id){ return S.glob[id]||0; }
+function maxLives(){ return 20+gl('lives')*4; }
+
+/* ---------- PATH GENERATION (zig-zag straight lines) ---------- */
+function genPath(seedNum){
+  let seed=seedNum>>>0;
+  const rnd=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+  const rows=[]; let y=1+Math.floor(rnd()*2);
+  while(y<GRID-1){ rows.push(y); y+=2+Math.floor(rnd()*3); }
+  if(rows.length<3) rows.push(GRID-2);
+  const pts=[]; let dir=1;
+  for(let i=0;i<rows.length;i++){
+    const ry=rows[i];
+    const startX = dir===1 ? (i===0?0:pts[pts.length-1].x) : (i===0?GRID-1:pts[pts.length-1].x);
+    let endX;
+    if(i===rows.length-1) endX = dir===1?GRID-1:0;
+    else endX = dir===1 ? GRID-1-Math.floor(rnd()*3) : Math.floor(rnd()*3);
+    pts.push({x:startX,y:ry});
+    pts.push({x:endX,y:ry});
+    dir*=-1;
+  }
+  // stitch into cell list
+  const cells=[]; const key=(x,y)=>x+','+y; const set=new Set();
+  const add=(x,y)=>{ if(!set.has(key(x,y))){set.add(key(x,y)); cells.push({x,y});} };
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i],b=pts[i+1];
+    if(a.y===b.y){ const s=Math.sign(b.x-a.x)||1; for(let x=a.x;;x+=s){ add(x,a.y); if(x===b.x)break; } }
+    else { const s=Math.sign(b.y-a.y)||1; for(let yy=a.y;;yy+=s){ add(a.x,yy); if(yy===b.y)break; } }
+  }
+  // ensure entry from left edge and exit to right/left edge
+  const first=cells[0], last=cells[cells.length-1];
+  const wps=cells.map(c=>({x:c.x*CELL+CELL/2,y:c.y*CELL+CELL/2}));
+  wps.unshift({x:first.x*CELL+CELL/2 - (first.x===0?CELL:0), y:first.y*CELL+CELL/2});
+  wps.push({x:last.x*CELL+CELL/2 + (last.x===GRID-1?CELL:-CELL), y:last.y*CELL+CELL/2});
+  return {cells,set,wps};
+}
+
+/* ---------- RUN STATE ---------- */
+function themeOf(){ return THEMES[(S.set-1)%THEMES.length]; }
+function familyOf(){ return FAMILIES[(S.set-1)%FAMILIES.length]; }
+
+function buildRun(keepTowers){
+  const path=genPath(S.seed+S.set*7919);
+  R={
+    path, towers: keepTowers&&R?R.towers:[], enemies:[], shots:[], fx:[],
+    running:false, speed:1, paused:false,
+    wave:0, waves:4+Math.min(10,S.level+S.set), spawnQ:[], spawnT:0,
+    sel:null, selTower:null, hover:null, time:0, levelDone:false, incomeT:0
+  };
+  if(keepTowers&&R) R.towers=R.towers.filter(t=>!path.set.has(t.cx+','+t.cy));
+}
+
+/* ---------- STATS ---------- */
+function towerStats(t){
+  const base=TW[t.id];
+  const cl=cardLv(t.id), il=t.lv||0;
+  const specMul = 1 + (t.spec.dmg||0)*0.25;
+  let dmg=base.dmg*(1+0.22*(cl-1))*(1+0.16*il)*specMul*(1+gl('aura_dmg')*0.06);
+  let rng=(base.rng+(t.spec.rng||0)*0.45)*(1+0.04*gl('aura_rng'))*(1+0.03*il);
+  let cd=base.cd/((1+0.05*(cl-1))*(1+0.05*il)*(1+0.05*gl('aura_rate'))*(1+(t.spec.rate||0)*0.18));
+  // support auras
+  let buff=0;
+  for(const o of R.towers){
+    if(o===t||TW[o.id].role!=='support')continue;
+    const or=towerStats0(o).rng;
+    if(Math.hypot(o.cx-t.cx,o.cy-t.cy)<=or) buff+=0.18+0.05*(cardLv(o.id)-1)+0.06*(o.lv||0);
+  }
+  dmg*=1+buff; cd/=1+buff*0.5;
+  // Overcrowding: identical strategies get diminishing returns
+  const role=base.role;
+  let sameRole=0, sameId=0;
+  for(const o of R.towers){ if(TW[o.id].role===role) sameRole++; if(o.id===t.id) sameId++; }
+  const sat=Math.max(0.3, Math.pow(0.87, Math.max(0,sameRole-3)) * Math.pow(0.95, Math.max(0,sameId-2)));
+  dmg*=sat;
+  return {dmg,rng,cd,buff,sat,sameRole};
+}
+function towerStats0(t){ const b=TW[t.id]; return {rng:(b.rng+(t.spec.rng||0)*0.45)*(1+0.04*gl('aura_rng'))}; }
+
+function enemyHP(levelGlobal,waveIdx,kind){
+  const base=30*Math.pow(1.62,levelGlobal-1)*(1+waveIdx*0.28);
+  return Math.round(base*kind.hpMul);
+}
+
+/* ---------- WAVE BUILDING ---------- */
+function makeWave(w){
+  const fam=familyOf(), gLv=(S.set-1)*5+S.level;
+  const n=8+w*3+Math.floor(S.level*2.2);
+  const q=[];
+  const boss = w===R.waves-1;
+  const gap = 0.52/Math.min(2.8,1+w*0.14);
+  let t=0, made=0, i=0;
+  while(made<n){
+    const k=pickKind(gLv,w);
+    const kind=Object.assign({},k,{e:fam.e[(i+KINDS.indexOf(k))%fam.e.length]});
+    const pack=k.pack||1;
+    for(let p=0;p<pack;p++){
+      q.push({kind,hp:enemyHP(gLv,w,kind),t:t+p*0.14,mini:!!k.mini});
+      made++;
+    }
+    t+=gap*(k.mini?2.2:1); i++;
+  }
+  // mid-wave elites: tanks and speedsters with real health
+  const elites=1+Math.floor(w/2);
+  for(let j=0;j<elites;j++){
+    const tank = j%2===0;
+    const k = tank
+      ? {tag:'Warlord',e:fam.e[j%fam.e.length],hpMul:9+S.level*1.6,spd:0.62,armor:0.55,res:{phys:.3,arc:.25},mark:'#ff9d4d',mini:true}
+      : {tag:'Courier',e:fam.e[(j+2)%fam.e.length],hpMul:3.6+S.level*0.7,spd:2.4,armor:0.1,dodge:.3,mark:'#8fd8ff',mini:true};
+    q.push({kind:k,hp:enemyHP(gLv,w,k),t:t*(0.25+0.6*j/Math.max(1,elites))+1.0,mini:true});
+  }
+  if(boss){
+    const k={e:fam.boss,hpMul:26+S.level*6+S.set*4,spd:0.58,armor:0.55,res:{phys:.35,arc:.35,elem:.2},tag:'BOSS',mark:'#ff6b6b'};
+    q.push({kind:k,hp:enemyHP(gLv,w,k),t:t+2.2,boss:true});
+    for(let g=0;g<3;g++){
+      const gk={e:fam.e[g%fam.e.length],hpMul:6+S.level*1.2,spd:1.0,armor:0.4,res:{elem:.3},tag:'Guard',mark:'#e0b060',mini:true};
+      q.push({kind:gk,hp:enemyHP(gLv,w,gk),t:t+2.2+0.5*g,mini:true});
+    }
+  }
+  q.sort((a,b)=>a.t-b.t);
+  return q;
+}
+
+/* ---------- GAME LOOP ---------- */
+let last=performance.now();
+function loop(now){
+  const dtr=Math.min(.05,(now-last)/1000); last=now;
+  if(R&&!R.paused){ const dt=dtr*R.speed; if(R.running) step(dt); R.time+=dt; S.playtime+=dtr; }
+  draw();
+  requestAnimationFrame(loop);
+}
+function step(dt){
+  // spawn
+  if(R.spawnQ.length){
+    R.spawnT+=dt;
+    while(R.spawnQ.length && R.spawnQ[0].t<=R.spawnT){
+      const s=R.spawnQ.shift();
+      R.enemies.push({x:R.path.wps[0].x,y:R.path.wps[0].y,wp:1,hp:s.hp,max:s.hp,kind:s.kind,
+        slow:0,slowT:0,poison:0,poisonT:0,burn:0,burnT:0,boss:!!s.boss,mini:!!s.mini,healT:0});
+    }
+  }
+  // enemies
+  for(const e of R.enemies){
+    if(e.slowT>0){e.slowT-=dt; if(e.slowT<=0)e.slow=0;}
+    if(e.poisonT>0){e.poisonT-=dt; e.hp-=e.poison*dt; if(e.poisonT<=0)e.poison=0;}
+    if(e.burnT>0){e.burnT-=dt; e.hp-=e.burn*dt; if(e.burnT<=0)e.burn=0;}
+    if(e.kind.regen && e.poisonT<=0 && e.burnT<=0){ e.hp=Math.min(e.max,e.hp+e.max*e.kind.regen*dt); }
+    if(e.kind.tag==='Healer'){ e.healT-=dt; if(e.healT<=0){e.healT=2; for(const o of R.enemies){ if(o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<110) o.hp=Math.min(o.max,o.hp+o.max*0.03); } } }
+    const tgt=R.path.wps[e.wp];
+    if(!tgt){ leak(e); e.dead=true; continue; }
+    const spd=(52+e.kind.spd*22)*e.kind.spd*(1-e.slow);
+    const dx=tgt.x-e.x, dy=tgt.y-e.y, d=Math.hypot(dx,dy);
+    if(d<spd*dt){ e.x=tgt.x; e.y=tgt.y; e.wp++; }
+    else { e.x+=dx/d*spd*dt; e.y+=dy/d*spd*dt; }
+  }
+  // towers fire
+  for(const t of R.towers){
+    const st=towerStats(t), role=TW[t.id].role;
+    if(role==='income'){ t.acc=(t.acc||0)+dt; const rate=1;
+      if(t.acc>=rate){ t.acc-=rate; const g=Math.round((6*Math.pow(2.1,TW[t.id].tier-1))*(1+0.3*(cardLv(t.id)-1))*(1+0.25*(t.lv||0))); gain(g,0); fx(t.cx*CELL+CELL/2,t.cy*CELL+CELL/2,'+'+g,'#f0c36a'); }
+      continue; }
+    if(role==='support') continue;
+    t.cool=(t.cool||0)-dt;
+    if(t.cool>0) continue;
+    const px=t.cx*CELL+CELL/2, py=t.cy*CELL+CELL/2, rr=st.rng*CELL;
+    let best=null,bestP=-1;
+    for(const e of R.enemies){ if(e.dead)continue; const d=Math.hypot(e.x-px,e.y-py); if(d<=rr){ const p=e.wp*1000-d; if(p>bestP){bestP=p;best=e;} } }
+    if(!best) continue;
+    t.cool=st.cd; t.ang=Math.atan2(best.y-py,best.x-px);
+    fire(t,st,best,px,py,rr);
+  }
+  // projectiles
+  for(const p of R.shots){
+    if(p.target&&!p.target.dead){ p.tx=p.target.x; p.ty=p.target.y; }
+    const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
+    if(d<p.spd*dt){ hit(p); p.dead=true; }
+    else { p.x+=dx/d*p.spd*dt; p.y+=dy/d*p.spd*dt; }
+    p.life=(p.life||0)+dt; if(p.life>3)p.dead=true;
+  }
+  R.shots=R.shots.filter(p=>!p.dead);
+  // deaths
+  for(const e of R.enemies){ if(e.dead)continue; if(e.hp<=0){ e.dead=true; kill(e); } }
+  R.enemies=R.enemies.filter(e=>!e.dead);
+  // fx
+  for(const f of R.fx){ f.t-=dt; f.y-=22*dt; } R.fx=R.fx.filter(f=>f.t>0);
+  // wave complete
+  if(R.running && !R.spawnQ.length && !R.enemies.length){
+    R.running=false;
+    if(R.wave>=R.waves) levelComplete();
+    else { log('Wave '+R.wave+' cleared.'); gain(Math.round(35*Math.pow(1.45,(S.set-1)*5+S.level-1)),0); sync(); }
+  }
+}
+function fire(t,st,target,px,py,rr){
+  const base=TW[t.id], role=base.role;
+  const critC=gl('crit')*0.03+(t.spec.crit||0)*0.05;
+  let dmg=st.dmg*(Math.random()<critC?3:1);
+  const col={single:'#ffe9a8',splash:'#ff9d4d',slow:'#9fe6ff',poison:'#a4e05a',chain:'#d9b3ff',sniper:'#ffd0d0',tesla:'#bfe9ff',flame:'#ff8a3d'}[role]||'#fff';
+  if(role==='chain'||role==='tesla'){
+    const hits=[target]; const n=(role==='chain'?3:2)+(t.spec.chain||0);
+    for(const e of R.enemies){ if(hits.length>=n)break; if(e===target||e.dead)continue; if(Math.hypot(e.x-target.x,e.y-target.y)<CELL*2.2) hits.push(e); }
+    hits.forEach((e,i)=>{ damage(e,dmg*Math.pow(0.75,i),t); });
+    R.fx.push({t:.15,type:'beam',pts:[{x:px,y:py},...hits.map(h=>({x:h.x,y:h.y}))],c:col});
+    return;
+  }
+  if(role==='flame'){
+    for(const e of R.enemies){ if(Math.hypot(e.x-px,e.y-py)<=rr){ damage(e,dmg,t); e.burn=Math.max(e.burn,dmg*0.5); e.burnT=2.2; } }
+    R.fx.push({t:.12,type:'ring',x:px,y:py,r:rr,c:col}); return;
+  }
+  if(role==='sniper'){ damage(target,dmg,t); R.fx.push({t:.12,type:'beam',pts:[{x:px,y:py},{x:target.x,y:target.y}],c:col}); return; }
+  R.shots.push({x:px,y:py,tx:target.x,ty:target.y,target,spd:role==='splash'?330:520,dmg,role,c:col,src:t,
+    splash:(1.05+(t.spec.splash||0)*0.3)*CELL});
+}
+function hit(p){
+  const t=p.src;
+  if(p.role==='splash'){
+    for(const e of R.enemies){ if(Math.hypot(e.x-p.x,e.y-p.y)<=p.splash) damage(e,p.dmg*(e===p.target?1:0.7),t); }
+    R.fx.push({t:.18,type:'ring',x:p.x,y:p.y,r:p.splash,c:'#ff9d4d'});
+  } else if(p.target&&!p.target.dead){
+    damage(p.target,p.dmg,t);
+    if(p.role==='slow'){ const s=clamp(0.30+0.05*(t.lv||0)+(t.spec.slow||0)*0.08,0,0.8); p.target.slow=Math.max(p.target.slow,s); p.target.slowT=1.8; }
+    if(p.role==='poison'){ p.target.poison=Math.max(p.target.poison,p.dmg*(0.8+(t.spec.pois||0)*0.4)); p.target.poisonT=3; }
+  }
+}
+function damage(e,d,t){
+  const cls=DCLASS[TW[t.id].role]||'phys';
+  if(e.kind.dodge && cls==='phys' && Math.random()<e.kind.dodge){ fx(e.x,e.y,'miss','#cfd8e3'); return; }
+  const armor=Math.max(0,e.kind.armor-(gl('pierce')*0.08));
+  const res=(e.kind.res&&e.kind.res[cls])||0;
+  e.hp-=d*(1-armor)*(1-res);
+}
+function kill(e){
+  const gLv=(S.set-1)*5+S.level;
+  let c=Math.round((7+e.max*0.055)*(1+gl('bounty')*0.12)*(e.boss?7:1));
+  gain(c,0); S.kills++;
+  if(Math.random()< (0.006+gl('gemluck')*0.004) || e.boss) gain(0,e.boss?3:1);
+  fx(e.x,e.y,'+'+c,'#f0c36a');
+  sync();
+}
+function leak(e){
+  S.leaks++;
+  if(S.insure>0){ S.insure--; log('🛡️ Insurance absorbed a leak! ('+S.insure+' left)'); toast('Insurance used'); sync(); return; }
+  const gLv=(S.set-1)*5+S.level;
+  let loss=Math.round((18+e.max*0.075)*(e.boss?6:e.mini?2.5:1));
+  loss=Math.round(loss*(1-gl('refund')*0.10));
+  S.coins=Math.max(0,S.coins-loss);
+  S.lives-=e.boss?10:e.mini?3:1;
+  fx(e.x,e.y,'-'+loss,'#e86b6b');
+  log('💥 A '+(e.kind.tag||'foe')+' escaped: −'+loss+' coins.');
+  if(S.lives<=0) gameOver();
+  sync();
+}
+function gain(c,g){ S.coins+=c||0; S.gems+=g||0; }
+function fx(x,y,txt,c){ R.fx.push({t:.9,type:'text',x,y,txt,c}); }
+
+/* ---------- LEVEL FLOW ---------- */
+function startWave(){
+  if(R.running) return;
+  if(R.wave>=R.waves) return;
+  R.wave++; R.spawnT=0; R.spawnQ=makeWave(R.wave-1); R.running=true;
+  const tags={}; for(const s of R.spawnQ){ const tg=s.kind.tag||'Grunt'; tags[tg]=(tags[tg]||0)+1; }
+  log('Wave '+R.wave+'/'+R.waves+' — '+familyOf().n+': '+Object.entries(tags).map(([k,v])=>k+'×'+v).join(', '));
+  sync();
+}
+function levelComplete(){
+  const gLv=(S.set-1)*5+S.level;
+  const rc=Math.round(180*Math.pow(1.5,gLv-1)) + Math.round(S.coins*gl('interest')*0.03);
+  const rg=1+gl('gemwave')+ (S.level===5?2:0);
+  gain(rc,rg);
+  let msg='<h2>🎉 Level Cleared!</h2><p>Realm '+S.set+' · Level '+S.level+'</p><p>Reward: 🪙 '+fmt(rc)+' &nbsp; 💎 '+rg+'</p>';
+  if(S.level>=5){
+    // realm over: recall everything, reset personal levels, new map+family+theme
+    recallAll(true);
+    S.set++; S.level=1; S.bestSet=Math.max(S.bestSet,S.set);
+    S.coins+=gl('startcoin')*250;
+    S.lives=maxLives();
+    msg+='<p><b>Realm complete!</b> All towers returned to your inventory and personal upgrades reset.</p>'+
+         '<p>New land: <b>'+themeOf().name+'</b> — defenders of the <b>'+familyOf().n+'</b> await.</p>';
+    buildRun(false);
+  } else {
+    S.level++;
+    buildRun(true);
+    msg+='<p>Your towers hold their ground. Personal upgrades persist until the realm ends.</p>';
+  }
+  save(); sync(); render();
+  overlay(msg+'<p><button class="go" onclick="closeOverlay()">Continue ⚔️</button></p>');
+}
+function gameOver(){
+  overlay('<h2>🏳️ The walls have fallen</h2><p>You reached Realm '+S.set+', Level '+S.level+'.</p>'+
+   '<p>Your towers are recalled and the level restarts. Coins and gems are kept.</p>'+
+   '<p><button class="go" onclick="retryLevel()">Rally Again</button></p>');
+  R.running=false; R.paused=true;
+}
+window.retryLevel=function(){ S.lives=maxLives(); recallAll(true); buildRun(false); R.paused=false; closeOverlay(); sync(); render(); save(); };
+
+function recallAll(resetPersonal){
+  if(!R) return;
+  for(const t of R.towers){ S.inv[t.id]=(S.inv[t.id]||0)+1; }
+  R.towers=[]; R.selTower=null;
+  if(resetPersonal){} // personal levels live on the instance; discarding them resets
+  sync(); render();
+}
+
+/* ---------- PLACEMENT ---------- */
+function placeAt(cx,cy){
+  if(!R.sel) return;
+  if(R.running && !isMobile(R.sel)) return toast('⛔ '+TW[R.sel].name+' cannot deploy mid-wave — train Field Redeployment on its card');
+  if(R.path.set.has(cx+','+cy)) return toast('Cannot build on the road');
+  if(R.towers.some(t=>t.cx===cx&&t.cy===cy)) return toast('Occupied');
+  const base=TW[R.sel];
+  const fromInv=(S.inv[R.sel]||0)>0;
+  if(!fromInv){
+    if(S.set<base.unlockSet) return toast('Locked until Realm '+base.unlockSet);
+    const bp=buyPrice(R.sel);
+    if(S.coins<bp) return toast('Not enough coins');
+    S.coins-=bp;
+  } else S.inv[R.sel]--;
+  R.towers.push({id:R.sel,cx,cy,lv:gl('quickcast'),spec:{},paid:buyPrice(R.sel),cool:0,ang:-1.57});
+  R.selTower=R.towers[R.towers.length-1];
+  sync(); render();
+}
+function sellTower(t){
+  const pct=0.70+gl('sellval')*0.04;
+  const v=Math.floor(buyPrice(t.id)*pct);
+  S.coins+=v; R.towers=R.towers.filter(x=>x!==t); R.selTower=null;
+  toast('Sold for '+v+' 🪙'); sync(); render();
+}
+function stashTower(t){
+  if(R.running && !isMobile(t.id)) return toast('⛔ Locked during a wave — train Field Redeployment on this card');
+  S.inv[t.id]=(S.inv[t.id]||0)+1; R.towers=R.towers.filter(x=>x!==t); R.selTower=null; sync(); render();
+}
+
+/* ---------- UPGRADES ---------- */
+function persCost(t){ return Math.round(buyPrice(t.id)*0.85*Math.pow(1.72,t.lv||0)/5)*5; }
+function upPersonal(t){
+  const c=persCost(t); if(S.coins<c) return toast('Not enough coins');
+  S.coins-=c; t.lv=(t.lv||0)+1; sync(); render();
+}
+const SPECS={
+ single:[{k:'dmg',n:'Bodkin Tips',d:'+25% damage'},{k:'rate',n:'Quickdraw',d:'+18% fire rate'},{k:'crit',n:'Keen Eye',d:'+5% crit chance'},{k:'rng',n:'Longbow',d:'+0.45 range'}],
+ splash:[{k:'dmg',n:'Heavy Shells',d:'+25% damage'},{k:'splash',n:'Wide Fuse',d:'+30% blast radius'},{k:'rate',n:'Loader Crew',d:'+18% fire rate'},{k:'rng',n:'Long Barrel',d:'+0.45 range'}],
+ slow:[{k:'slow',n:'Deep Chill',d:'+8% slow power'},{k:'dmg',n:'Ice Shards',d:'+25% damage'},{k:'rng',n:'Cold Front',d:'+0.45 range'},{k:'rate',n:'Flurry',d:'+18% fire rate'}],
+ poison:[{k:'pois',n:'Toxic Brew',d:'+40% poison damage'},{k:'dmg',n:'Acid Flask',d:'+25% damage'},{k:'rate',n:'Fast Hands',d:'+18% fire rate'},{k:'rng',n:'Long Throw',d:'+0.45 range'}],
+ chain:[{k:'chain',n:'Forked Bolt',d:'+1 chain target'},{k:'dmg',n:'Overcharge',d:'+25% damage'},{k:'rate',n:'Capacitors',d:'+18% fire rate'},{k:'rng',n:'Conductors',d:'+0.45 range'}],
+ sniper:[{k:'crit',n:'Assassin Doctrine',d:'+5% crit chance'},{k:'dmg',n:'Heavy Slug',d:'+25% damage'},{k:'rng',n:'Scope Array',d:'+0.45 range'},{k:'rate',n:'Rapid Bolt',d:'+18% fire rate'}],
+ support:[{k:'rng',n:'Louder Horn',d:'+0.45 aura range'},{k:'dmg',n:'Inspiring Song',d:'+25% aura power'},{k:'rate',n:'Marching Drum',d:'+18% aura rate'},{k:'crit',n:'War Stories',d:'allies +5% crit'}],
+ income:[{k:'dmg',n:'Deeper Mint',d:'+25% coin output'},{k:'rate',n:'Faster Press',d:'+18% output'},{k:'rng',n:'Wider Vault',d:'+0.45 range'},{k:'crit',n:'Lucky Strike',d:'chance of bonus'}],
+ tesla:[{k:'rate',n:'Hyper Coil',d:'+18% fire rate'},{k:'chain',n:'Split Arc',d:'+1 chain target'},{k:'dmg',n:'High Voltage',d:'+25% damage'},{k:'rng',n:'Field Expander',d:'+0.45 range'}],
+ flame:[{k:'dmg',n:'White Flame',d:'+25% damage'},{k:'rng',n:'Bellows',d:'+0.45 range'},{k:'rate',n:'Pressure Tank',d:'+18% rate'},{k:'crit',n:'Ember Burst',d:'+5% crit'}]
+};
+function specCost(t,i){ return Math.round(buyPrice(t.id)*(1.2+i*0.6)*Math.pow(2.15,(t.spec[SPECS[TW[t.id].role][i].k]||0))/5)*5; }
+function buySpec(t,i){
+  const sp=SPECS[TW[t.id].role][i], c=specCost(t,i);
+  if((t.spec[sp.k]||0)>=5) return toast('Maxed');
+  if(S.coins<c) return toast('Not enough coins');
+  S.coins-=c; t.spec[sp.k]=(t.spec[sp.k]||0)+1; sync(); render();
+}
+function cardUpCost(id){ const L=cardLv(id); return Math.round(TW[id].price*5*Math.pow(2.15,L-1)/5)*5; }
+function upCard(id){
+  const c=cardUpCost(id); if(cardLv(id)>=20) return toast('Card maxed');
+  if(S.coins<c) return toast('Not enough coins');
+  S.coins-=c; S.cards[id]=cardLv(id)+1; toast(TW[id].name+' → permanent Lv '+S.cards[id]); sync(); render();
+}
+function buyGlobal(g){
+  const lv=gl(g.id), c=g.cost(lv);
+  if(!g.stock && lv>=g.max) return toast('Maxed');
+  if(g.cur==='gems'? S.gems<c : S.coins<c) return toast('Not enough '+(g.cur==='gems'?'gems':'coins'));
+  if(g.cur==='gems') S.gems-=c; else S.coins-=c;
+  if(g.stock){ S.insure++; toast('Insurance charges: '+S.insure); }
+  else { S.glob[g.id]=lv+1; if(g.id==='lives') S.lives+=4; }
+  sync(); render();
+}
+
+/* ---------- RENDER CANVAS ---------- */
+function noise(x,y){ const n=Math.sin(x*127.1+y*311.7)*43758.5453; return n-Math.floor(n); }
+function draw(){
+  if(!R) return;
+  const th=themeOf();
+  ctx.clearRect(0,0,W,W);
+  // ground
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    const n=noise(x+S.set*3,y);
+    ctx.fillStyle = n>0.55? th.ground2: th.ground;
+    ctx.fillRect(x*CELL,y*CELL,CELL,CELL);
+    if(n>0.86){ ctx.fillStyle='rgba(255,255,255,.06)'; ctx.fillRect(x*CELL,y*CELL,CELL,CELL); }
+  }
+  // border frame (water / cliffs / lava)
+  ctx.strokeStyle=th.border; ctx.lineWidth=10; ctx.strokeRect(5,5,W-10,W-10);
+  // decorations
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    if(R.path.set.has(x+','+y))continue;
+    if(R.towers.some(t=>t.cx===x&&t.cy===y))continue;
+    const n=noise(x*1.7+S.set*11,y*2.3);
+    if(n<th.decoRate){ ctx.globalAlpha=.85; ctx.font='20px serif';
+      ctx.fillText(th.deco[Math.floor(noise(y,x)*th.deco.length)%th.deco.length],x*CELL+CELL/2,y*CELL+CELL/2+2); ctx.globalAlpha=1; }
+  }
+  // path
+  for(const c of R.path.cells){
+    const x=c.x*CELL,y=c.y*CELL;
+    ctx.fillStyle=(c.x+c.y)%2?th.path:th.path2;
+    ctx.fillRect(x,y,CELL,CELL);
+  }
+  // path outline dashes
+  ctx.strokeStyle=th.pathEdge; ctx.lineWidth=3;
+  for(const c of R.path.cells){
+    const x=c.x*CELL,y=c.y*CELL;
+    const nb=(dx,dy)=>R.path.set.has((c.x+dx)+','+(c.y+dy));
+    ctx.beginPath();
+    if(!nb(0,-1)){ctx.moveTo(x,y+1.5);ctx.lineTo(x+CELL,y+1.5);}
+    if(!nb(0,1)){ctx.moveTo(x,y+CELL-1.5);ctx.lineTo(x+CELL,y+CELL-1.5);}
+    if(!nb(-1,0)){ctx.moveTo(x+1.5,y);ctx.lineTo(x+1.5,y+CELL);}
+    if(!nb(1,0)){ctx.moveTo(x+CELL-1.5,y);ctx.lineTo(x+CELL-1.5,y+CELL);}
+    ctx.stroke();
+  }
+  // start & end markers
+  const a=R.path.cells[0], b=R.path.cells[R.path.cells.length-1];
+  ctx.font='26px serif';
+  ctx.fillText('🚪',a.x*CELL+CELL/2,a.y*CELL+CELL/2);
+  ctx.fillText('🏰',b.x*CELL+CELL/2,b.y*CELL+CELL/2);
+  // hover/placement preview
+  if(R.hover&&R.sel){
+    const {x,y}=R.hover, base=TW[R.sel];
+    const ok=!R.path.set.has(x+','+y)&&!R.towers.some(t=>t.cx===x&&t.cy===y);
+    const rr=(base.rng*(1+0.04*gl('aura_rng')))*CELL;
+    ctx.fillStyle=ok?'rgba(255,255,255,.28)':'rgba(255,60,60,.32)';
+    ctx.fillRect(x*CELL,y*CELL,CELL,CELL);
+    ctx.beginPath(); ctx.arc(x*CELL+CELL/2,y*CELL+CELL/2,rr,0,7);
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.10)'; ctx.fill();
+  }
+  // towers
+  for(const t of R.towers){
+    const x=t.cx*CELL, y=t.cy*CELL, st=towerStats(t);
+    ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+CELL/2,y+CELL-8,16,7,0,0,7); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.35)'; roundRect(x+5,y+5,CELL-10,CELL-10,9); ctx.fill();
+    ctx.strokeStyle=t===R.selTower?'#ffd76a':'rgba(0,0,0,.35)'; ctx.lineWidth=t===R.selTower?3:2; roundRect(x+5,y+5,CELL-10,CELL-10,9); ctx.stroke();
+    ctx.font='26px serif'; ctx.fillText(TW[t.id].emoji,x+CELL/2,y+CELL/2+1);
+    const lvl=cardLv(t.id)+(t.lv||0);
+    ctx.font='bold 10px Verdana'; ctx.fillStyle='#2b2320';
+    ctx.fillText('L'+lvl,x+CELL/2,y+CELL-7);
+    if(st.buff>0){ ctx.strokeStyle='rgba(255,230,130,.85)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x+CELL/2,y+CELL/2,20,0,7); ctx.stroke(); }
+  }
+  if(R.selTower){ const st=towerStats(R.selTower);
+    ctx.beginPath(); ctx.arc(R.selTower.cx*CELL+CELL/2,R.selTower.cy*CELL+CELL/2,st.rng*CELL,0,7);
+    ctx.strokeStyle='rgba(255,215,106,.8)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='rgba(255,215,106,.10)'; ctx.fill(); }
+  // shots
+  for(const p of R.shots){ ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.role==='splash'?6:4,0,7); ctx.fill(); }
+  // enemies
+  for(const e of R.enemies){
+    const s=e.boss?38:e.mini?31:24;
+    ctx.font=s+'px serif'; ctx.fillText(e.kind.e,e.x,e.y);
+    const w=e.boss?46:e.mini?36:28;
+    ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fillRect(e.x-w/2,e.y-s/2-9,w,5);
+    ctx.fillStyle=e.hp/e.max>.5?'#7ede6a':e.hp/e.max>.25?'#f2d15a':'#e86b6b';
+    ctx.fillRect(e.x-w/2,e.y-s/2-9,w*clamp(e.hp/e.max,0,1),5);
+    if(e.kind.mark){ ctx.fillStyle=e.kind.mark; ctx.beginPath(); ctx.arc(e.x,e.y-s/2-14,3.5,0,7); ctx.fill(); }
+    if(e.slow>0){ ctx.fillStyle='rgba(150,220,255,.45)'; ctx.beginPath(); ctx.arc(e.x,e.y,s*0.6,0,7); ctx.fill(); }
+    if(e.poison>0){ ctx.fillStyle='rgba(140,220,90,.35)'; ctx.beginPath(); ctx.arc(e.x,e.y,s*0.5,0,7); ctx.fill(); }
+    if(e.burn>0){ ctx.fillStyle='rgba(255,140,60,.30)'; ctx.beginPath(); ctx.arc(e.x,e.y,s*0.55,0,7); ctx.fill(); }
+  }
+  // fx
+  for(const f of R.fx){
+    if(f.type==='text'){ ctx.globalAlpha=clamp(f.t,0,1); ctx.font='bold 14px Verdana'; ctx.fillStyle=f.c;
+      ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.lineWidth=3; ctx.strokeText(f.txt,f.x,f.y); ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
+    if(f.type==='ring'){ ctx.globalAlpha=clamp(f.t*5,0,1); ctx.strokeStyle=f.c; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+    if(f.type==='beam'){ ctx.globalAlpha=clamp(f.t*6,0,1); ctx.strokeStyle=f.c; ctx.lineWidth=3; ctx.beginPath();
+      f.pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); ctx.globalAlpha=1; }
+  }
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---------- INPUT ---------- */
+function cellFromEvent(ev){
+  const r=cv.getBoundingClientRect();
+  const x=Math.floor((ev.clientX-r.left)/r.width*GRID);
+  const y=Math.floor((ev.clientY-r.top)/r.height*GRID);
+  return {x:clamp(x,0,GRID-1),y:clamp(y,0,GRID-1)};
+}
+cv.addEventListener('mousemove',e=>{ R.hover=cellFromEvent(e); });
+cv.addEventListener('mouseleave',()=>R.hover=null);
+cv.addEventListener('click',e=>{
+  const {x,y}=cellFromEvent(e);
+  const t=R.towers.find(t=>t.cx===x&&t.cy===y);
+  if(t){ R.selTower=t; R.sel=null; tab('tower'); render(); return; }
+  if(R.sel) placeAt(x,y); else { R.selTower=null; render(); }
+});
+cv.addEventListener('contextmenu',e=>{e.preventDefault(); R.sel=null; R.selTower=null; render();});
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault(); startWave();}
+  if(e.key==='Escape'){R.sel=null;R.selTower=null;render();}
+  if(e.key==='p'||e.key==='P') togglePause();
+  if(e.key==='1'||e.key==='2'||e.key==='3'){ R.speed=+e.key; $('btnSpeed').textContent='⏩ '+R.speed+'×'; }
+  if((e.key==='s'||e.key==='S')&&R.selTower) sellTower(R.selTower);
+});
+
+/* ---------- UI ---------- */
+let curTab='shop';
+const TABS=[['shop','🛒 Shop'],['inv','📦 Inventory'],['cards','⭐ Card Upgrades'],['tower','🔧 Selected'],['glob','🏛️ Kingdom'],['save','💾 Save']];
+function tab(t){ curTab=t; render(); }
+window.tab=tab;
+function render(){
+  $('tabs').innerHTML=TABS.map(([k,l])=>`<button class="${k===curTab?'on':''}" onclick="tab('${k}')">${l}</button>`).join('');
+  const p=$('pane');
+  if(curTab==='shop') p.innerHTML=shopHTML();
+  else if(curTab==='inv') p.innerHTML=invHTML();
+  else if(curTab==='cards') p.innerHTML=cardsHTML();
+  else if(curTab==='tower') p.innerHTML=towerHTML();
+  else if(curTab==='glob') p.innerHTML=globHTML();
+  else p.innerHTML=saveHTML();
+  sync();
+}
+function tcard(t,extra,cls){
+  const locked=S.set<t.unlockSet && !(S.inv[t.id]>0);
+  const inv=S.inv[t.id]||0;
+  return `<div class="card ${locked?'locked':''} ${R&&R.sel===t.id?'sel':''} ${cls||''}" onclick="${locked?'':`pick('${t.id}')`}">
+    ${cardLv(t.id)>1?`<span class="lv">Lv${cardLv(t.id)}</span>`:''}
+    ${inv?`<span class="inv">×${inv}</span>`:''}
+    <div class="emo">${t.emoji}</div>
+    <div class="nm">${t.name}</div>
+    <div class="pr">${locked?'🔒 Realm '+t.unlockSet:(inv?'FREE (stock)':'🪙 '+fmt(buyPrice(t.id)))}</div>
+    ${extra||''}
+  </div>`;
+}
+window.pick=id=>{ R.sel=(R.sel===id?null:id); R.selTower=null; render(); };
+function shopHTML(){
+  let h=`<h3>Armory — Realm ${S.set} (${themeOf().name})</h3>
+  <p class="mini">Click a card, then click the land to build. Stock from your inventory is placed for free. <b>Every permanent card level makes that tower type cost 34% more to build</b>, and building many towers of the same role weakens all of them — spread your defence across roles!</p>`;
+  for(let t=1;t<=10;t++){
+    const set=TOWERS.filter(x=>x.tier===t);
+    const anyVisible=S.set>=t-1;
+    if(!anyVisible) continue;
+    h+=`<h3>Tier ${t} · ${PREFIX[t-1]}</h3><div class="grid">`+set.map(x=>tcard(x)).join('')+`</div>`;
+  }
+  return h;
+}
+function invHTML(){
+  const ids=Object.keys(S.inv).filter(k=>S.inv[k]>0);
+  if(!ids.length) return `<h3>Inventory</h3><p class="mini">Empty. Towers you own are returned here when a realm ends (or when you recall them), so you never buy the same tower twice.</p>`;
+  return `<h3>Inventory (${ids.reduce((a,k)=>a+S.inv[k],0)} units)</h3>
+    <p class="mini">Place these for free. Recalled towers lose their personal upgrades.</p>
+    <div class="grid">`+ids.map(k=>tcard(TW[k])).join('')+`</div>`;
+}
+function cardsHTML(){
+  let h=`<h3>Permanent Card Upgrades</h3><p class="mini">🎒 <b>Field Redeployment</b> is a permanent, gem-priced card skill: without it, that tower type cannot be built, moved or recalled once a wave has started. Upgrading a card raises the base level of EVERY unit of that type, forever — and each level also raises what that tower costs to build. Personal (in-field) upgrades stack on top of this.</p>`;
+  const owned=TOWERS.filter(t=>S.set>=t.unlockSet);
+  h+='<div class="grid">'+owned.map(t=>{
+    const c=cardUpCost(t.id);
+    const mc=mobilityCost(t.id), mob=isMobile(t.id);
+    return tcard(t,`<div class="row" style="justify-content:center"><button ${S.coins<c?'disabled':''} onclick="event.stopPropagation();upCard('${t.id}')">⬆ ${fmt(c)}</button></div>
+      <div class="row" style="justify-content:center"><button class="dark" ${mob||S.coins<mc.coins||S.gems<mc.gems?'disabled':''} onclick="event.stopPropagation();buyMobility('${t.id}')">${mob?'🎒 Mobile ✓':'🎒 '+fmt(mc.coins)+' 🪙 + '+mc.gems+' 💎'}</button></div>
+      <div class="mini">dmg ${fmt(TW[t.id].dmg*(1+0.22*(cardLv(t.id)-1)))}</div>`);
+  }).join('')+'</div>';
+  return h;
+}
+window.upCard=upCard;
+function towerHTML(){
+  const t=R.selTower;
+  if(!t) return `<h3>No tower selected</h3><p class="mini">Click a tower on the map to inspect, upgrade, stash or sell it.</p>`;
+  const b=TW[t.id], st=towerStats(t), pc=persCost(t), sellV=Math.floor(buyPrice(t.id)*(0.70+gl('sellval')*0.04));
+  let h=`<h3>${b.emoji} ${b.name}</h3>
+  <div class="mini">${b.desc}</div>
+  <div class="row"><span class="tag">Card Lv ${cardLv(t.id)}</span><span class="tag">Personal Lv ${t.lv||0}</span><span class="tag">Tier ${b.tier}</span><span class="tag">${b.role}</span></div>
+  <div class="row"><b>DMG</b><div class="bar"><i style="width:${clamp(Math.log10(st.dmg+1)*22,4,100)}%"></i></div>${fmt(st.dmg)}</div>
+  <div class="row"><b>RNG</b><div class="bar"><i style="width:${clamp(st.rng*14,4,100)}%"></i></div>${st.rng.toFixed(2)}</div>
+  <div class="row"><b>RATE</b><div class="bar"><i style="width:${clamp(60/(st.cd*60+.01)*8,4,100)}%"></i></div>${st.cd?(1/st.cd).toFixed(2)+'/s':'—'}</div>
+  ${st.buff>0?`<div class="mini">🚩 Banner aura: +${Math.round(st.buff*100)}% power</div>`:''}
+  <div class="mini">Damage type: <b>${CLASSNAME[DCLASS[b.role]]}</b>${st.sat<1?` · ⚠️ Overcrowding: ${st.sameRole} ${b.role} towers → ${Math.round(st.sat*100)}% damage`:''}</div>
+  <div class="up"><div><b>Personal Level Up</b><p>+16% damage, +5% rate, +3% range. Lost when the realm ends.</p></div>
+    <button ${S.coins<pc?'disabled':''} onclick="upPers()">🪙 ${fmt(pc)}</button></div>
+  <h3>Specializations (max 5 each)</h3>`;
+  SPECS[b.role].forEach((sp,i)=>{
+    const lv=t.spec[sp.k]||0, c=specCost(t,i);
+    h+=`<div class="up"><div><b>${sp.n} <span class="tag">${lv}/5</span></b><p>${sp.d}</p></div>
+      <button ${lv>=5||S.coins<c?'disabled':''} onclick="buySp(${i})">${lv>=5?'MAX':'🪙 '+fmt(c)}</button></div>`;
+  });
+  h+=`<div class="row" style="margin-top:10px;gap:8px">
+    <button class="dark" ${R.running&&!isMobile(t.id)?'disabled':''} onclick="stashSel()">📦 Recall to Inventory${R.running&&!isMobile(t.id)?' 🔒':''}</button>
+    <button class="bad" onclick="sellSel()">💰 Sell for ${fmt(sellV)}</button></div>
+    <p class="mini">${isMobile(t.id)?'🎒 Field Redeployment trained — this type can be moved and placed mid-wave.':'🔒 No Field Redeployment: this type is frozen once a wave starts. Train it on the Card Upgrades tab.'}</p>
+    <p class="mini">Selling returns 70% (+${gl('sellval')*4}% from Guild Haggling) of the purchase price, rounded down. Recalling keeps the unit forever instead.</p>`;
+  return h;
+}
+window.upPers=()=>upPersonal(R.selTower);
+window.buySp=i=>buySpec(R.selTower,i);
+window.stashSel=()=>stashTower(R.selTower);
+window.sellSel=()=>sellTower(R.selTower);
+function globHTML(){
+  let h=`<h3>Kingdom Upgrades</h3><p class="mini">Permanent, expensive, run-defining. These apply to every tower in every realm.</p>`;
+  for(const g of GLOBALS){
+    const lv=gl(g.id), c=g.cost(lv), max=!g.stock&&lv>=g.max;
+    const cur=g.cur==='gems'?'💎':'🪙';
+    const have=g.cur==='gems'?S.gems:S.coins;
+    h+=`<div class="up"><div><b>${g.n} <span class="tag">${g.stock?('stock '+S.insure):lv+'/'+g.max}</span></b><p>${g.d}</p></div>
+      <button ${max||have<c?'disabled':''} onclick="buyG('${g.id}')">${max?'MAX':cur+' '+fmt(c)}</button></div>`;
+  }
+  h+=`<h3>Records</h3><div class="mini">Kills: ${fmt(S.kills)} · Leaks: ${S.leaks} · Furthest realm: ${S.bestSet} · Playtime: ${Math.floor(S.playtime/60)}m</div>`;
+  return h;
+}
+window.buyG=id=>buyGlobal(GLOBALS.find(g=>g.id===id));
+function saveHTML(){
+  return `<h3>Save Vault</h3>
+  <p class="mini">Everything — coins, gems, cards, card skills, inventory and the exact towers on the board — saves automatically to this browser (localStorage + IndexedDB) and travels with your export file. Export a file to back it up or carry it to another device.</p>
+  <div class="row"><button class="go" onclick="doSave()">💾 Save Now</button>
+  <button class="dark" onclick="doExport()">⬇ Export Save</button>
+  <button class="dark" onclick="document.getElementById('fileIn').click()">⬆ Import Save</button></div>
+  <div class="row"><button class="bad" onclick="doWipe()">☠️ Delete Save & Restart</button></div>
+  <h3>Manual Save Text</h3>
+  <textarea id="saveText" readonly>${btoa(unescape(encodeURIComponent(JSON.stringify(snapshot()))))}</textarea>
+  <div class="row"><button class="dark" onclick="copySave()">📋 Copy</button>
+  <button class="dark" onclick="pasteSave()">📥 Paste &amp; Load</button></div>
+  <h3>How to Play</h3>
+  <div class="mini">
+   • 16×16 snake road, regenerated every realm (5 levels).<br>
+   • Coins from kills; leaks cost coins and lives. Gems are rare — spend them on Kingdom upgrades.<br>
+   • Towers stay placed between levels of a realm and keep personal upgrades; at realm's end everything returns to your inventory and personal levels reset to the card's base.<br>
+   • Card upgrades are permanent for every copy you ever place.<br>
+   • Damage types: 🏹 Marksman/Longshot/Bombard = <b>Physical</b>; ⚡ Stormcaller/Arcanist = <b>Arcane</b>; 🔥 Pyre / 🧪 Venomist / ❄️ Frostcaller = <b>Elemental</b>.<br>
+   • Foes resist types: Armored & Phantom shrug off Physical, Warded shrugs off Arcane, Regenerators heal unless burning or poisoned (Elemental stops them), Phantoms dodge shots entirely, Swarmlings arrive in packs (use splash).<br>
+   • Overcrowding: past 3 towers of the same role, every tower of that role loses 13% damage each (floor 30%). Mixed defences win.<br>
+   • 🎒 Field Redeployment (Card Upgrades tab): without it a tower type cannot be built, moved or recalled mid-wave.<br>
+   • Hotkeys: Space = start wave, 1/2/3 = speed, P = pause, S = sell, Esc = deselect.
+  </div>`;
+}
+window.copySave=()=>{ $('saveText').select(); document.execCommand('copy'); toast('Copied'); };
+window.pasteSave=async()=>{ const txt=prompt('Paste save text:'); if(!txt)return;
+  try{ const o=JSON.parse(decodeURIComponent(escape(atob(txt.trim())))); loadState(o); toast('Save loaded'); }catch(e){ toast('Invalid save'); } };
+window.doSave=()=>{ save(true); toast('Saved'); };
+window.doWipe=()=>{ if(confirm('Delete your kingdom permanently?')){ S=newSave(); R=null; buildRun(false); save(true); render(); sync(); } };
+window.doExport=()=>{
+  const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='wayfarer-kingdoms-save.json'; a.click(); URL.revokeObjectURL(a.href); toast('Exported');
+};
+$('fileIn').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ loadState(JSON.parse(r.result)); toast('Save imported'); }catch(err){ toast('Bad file'); } };
+  r.readAsText(f); e.target.value='';
+});
+function loadState(o){ S=Object.assign(newSave(),o); R=null; buildRun(false); restoreField(); save(true); render(); sync(); }
+function restoreField(){
+  const f=S.field;
+  if(!f||!R) return;
+  R.towers=(f.towers||[]).filter(t=>TW[t.id]&&!R.path.set.has(t.cx+','+t.cy))
+    .map(t=>({id:t.id,cx:t.cx,cy:t.cy,lv:t.lv||0,spec:t.spec||{},paid:t.paid||buyPrice(t.id),cool:0,ang:-1.57}));
+  R.wave=Math.min(f.wave||0,R.waves); R.speed=f.speed||1;
+  const bs=document.getElementById('btnSpeed'); if(bs) bs.textContent='⏩ '+R.speed+'×';
+}
+
+function sync(){
+  $('sCoins').textContent=fmt(S.coins); $('sGems').textContent=fmt(S.gems);
+  $('sLives').textContent=S.lives+'/'+maxLives();
+  $('sSet').textContent=S.set; $('sLevel').textContent=S.level;
+  $('sWave').textContent=(R?R.wave:0)+'/'+(R?R.waves:0);
+  $('sTheme').textContent=themeOf().name+' · '+familyOf().n;
+  $('btnStart').disabled=!R||R.running||R.wave>=R.waves;
+  save();
+}
+function log(m){ const d=document.createElement('div'); d.textContent='• '+m; $('log').appendChild(d); $('log').scrollTop=1e6;
+  while($('log').children.length>90)$('log').removeChild($('log').firstChild); }
+let toastT;
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1400); }
+function overlay(html){ $('obox').innerHTML=html; $('overlay').style.display='flex'; }
+window.closeOverlay=()=>{ $('overlay').style.display='none'; };
+
+/* ---------- BUTTONS ---------- */
+$('btnStart').onclick=startWave;
+$('btnSpeed').onclick=()=>{ R.speed=R.speed===1?2:R.speed===2?3:1; $('btnSpeed').textContent='⏩ '+R.speed+'×'; };
+$('btnPause').onclick=togglePause;
+function togglePause(){ R.paused=!R.paused; $('btnPause').textContent=R.paused?'▶':'⏸'; }
+$('btnReturn').onclick=()=>{ if(R.running) return toast('Not during a wave'); recallAll(false); toast('All towers recalled'); };
+
+/* ---------- INDEXEDDB ---------- */
+let db=null;
+function openDB(){
+  return new Promise(res=>{
+    const rq=indexedDB.open('wayfarer-kingdoms',1);
+    rq.onupgradeneeded=()=>{ rq.result.createObjectStore('saves'); };
+    rq.onsuccess=()=>{ db=rq.result; res(db); };
+    rq.onerror=()=>res(null);
+  });
+}
+function snapshot(){
+  if(R) S.field={ towers:R.towers.map(t=>({id:t.id,cx:t.cx,cy:t.cy,lv:t.lv||0,spec:Object.assign({},t.spec),paid:t.paid})),
+                  wave:R.running?Math.max(0,R.wave-1):R.wave, waves:R.waves, speed:R.speed };
+  return S;
+}
+let lastSave=0;
+function save(force){
+  const now=Date.now();
+  if(!force && now-lastSave<900) return;
+  lastSave=now;
+  snapshot();
+  let json=null;
+  try{ json=JSON.stringify(S); }catch(e){}
+  if(json){ try{ localStorage.setItem('wk-save',json); }catch(e){} }
+  if(db){ try{ const tx=db.transaction('saves','readwrite'); tx.objectStore('saves').put(JSON.parse(json||'{}'),'main'); }catch(e){} }
+}
+function load(){
+  return new Promise(res=>{
+    if(!db){ try{ const l=localStorage.getItem('wk-save'); return res(l?JSON.parse(l):null);}catch(e){return res(null);} }
+    const tx=db.transaction('saves','readonly');
+    const rq=tx.objectStore('saves').get('main');
+    rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null);
+  });
+}
+
+/* ---------- BOOT ---------- */
+(async function boot(){
+  await openDB();
+  const saved=await load();
+  S = saved? Object.assign(newSave(),saved) : newSave();
+  buildRun(false);
+  restoreField();
+  render(); sync();
+  log('Welcome to '+themeOf().name+'. The '+familyOf().n+' are coming.');
+  if(!S.seenTutorial){
+    S.seenTutorial=true;
+    overlay(`<h2>🏰 Wayfarer Kingdoms</h2>
+     <p>Defend the castle across endless realms. Each realm is a new land, a new road, and a new enemy family.</p>
+     <p class="mini">Pick a tower in the Shop → click the land to build → press <b>Start Wave</b>. Kills pay coins; escapes cost coins and lives. Everything you buy is yours forever: at the end of each realm your towers return to your inventory.</p>
+     <p><button class="go" onclick="closeOverlay()">Begin the Defense</button></p>`);
+  }
+  setInterval(()=>save(true),5000);
+  window.addEventListener('beforeunload',()=>save(true));
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) save(true); });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
